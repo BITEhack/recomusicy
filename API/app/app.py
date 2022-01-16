@@ -1,3 +1,4 @@
+import pickle
 from typing import Optional
 
 import pandas as pd
@@ -9,9 +10,10 @@ import numpy as np
 import os
 import cv2
 import joblib
-import pickle
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from src.utils import map_emotion, extract_features
+import json
 
 app = FastAPI()
 
@@ -23,9 +25,14 @@ text_database = pd.DataFrame(columns=['user_id', 'date', 'text', 'label'])
 
 # load models
 images_model = tf.keras.models.load_model(os.getcwd() + '/images_model.h5')
-text_model: LogisticRegression = joblib.load('../ModelTextEmotions.sav')
+text_model: LogisticRegression = joblib.load(os.getcwd() + '/ModelTextEmotions.sav')
+lyrics_model = tf.keras.models.load_model(os.getcwd() + '/lyrics_regression.h5')
 
-with open('../VectorizerTextEmotions.pk', 'rb') as file:
+# load features
+input_file = open(os.getcwd() + '/features.json')
+features = json.load(input_file)
+
+with open(os.getcwd() + '/VectorizerTextEmotions.pk', 'rb') as file:
     vectorizer: TfidfVectorizer = pickle.load(file)
 
 
@@ -34,28 +41,30 @@ def read_image_file(data) -> Image.Image:
     return image
 
 
-@app.post('/classification', tags=['classification'])
+@app.post('/store_data', tags=['recommendations'])
 async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(None), lyrics: Optional[str] = None,
                        text: Optional[str] = None, artist: Optional[str] = None, track: Optional[str] = None,
                        genre: Optional[str] = None) -> dict:
-    global image_database, lyrics_database, text_database, images_model, text_model, vectorizer
+    global image_database, lyrics_database, text_database, images_model, text_model, vectorizer, features
     if lyrics is not None:
-        valence, arousal = 1, 1  # TODO change to actual model
-        # update database
-        lyrics_database = lyrics_database.append({'user_id': user_id, 'date': pd.to_datetime('now')}, ignore_index=True)
-        return {'valence': valence,
-                'arousal': arousal}
-    elif text is not None:
-        X = vectorizer.transform(text)
+        pr = list(lyrics_model.predict(extract_features(lyrics, features))[0])
 
-        # sadness (0), joy (1), love (2), anger (3), fear (4)
-        # TODO consider mapping to arousal/valence
-        prediction = text_model.predict(X)
+        valence, arousal = pr[0], pr[1]
+        # update database
+        lyrics_database = lyrics_database.append({'user_id': user_id, 'date': pd.to_datetime('now'), 'artist': artist,
+                                                  'track': track, 'genre': genre, 'valence': valence,
+                                                  'arousal': arousal}, ignore_index=True)
+
+        return {'valence': '{}'.format(valence)}
+    elif text is not None:
+        X = vectorizer.transform([text])
+
+        prediction = map_emotion(text_model.predict(X)[0])
         # update database
         # added [0] to extract prediction and text from tables (text HAS TO BE IN ARRAY TO WORK e.g. ["sad"])
         text_database = text_database.append({'user_id': user_id, 'date': pd.to_datetime('now'),
-                                              'text': text[0], 'label': prediction[0]}, ignore_index=True)
-        return {'text': 'model to be done'}
+                                              'text': text[0], 'label': prediction}, ignore_index=True)
+        return {'valence and arousal': prediction}
     elif image is not None:
         # get image
         image = read_image_file(await image.read())
@@ -72,11 +81,14 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
 
         # update database
         image_database = image_database.append({'user_id': user_id, 'date': pd.to_datetime('now'),
-                                                'image': image, 'label': predictions})
+                                                'image': image, 'label': predictions}, ignore_index=True)
 
         return {"data": "{}".format(predictions)}
 
 
-# classify_num(user_id=1, text=["sad boy sad"])
-# print(text_database)
+# @app.get('/recommend', tags=['recommendations'])
+# async def recommend(user_id: int):
+#     # get most relevant information
+#     last_text = text_database.where('user_id' == user_id).sort_values(by=['date'], acending=False)\
+#         .iat[0, text_database.get_loc('label')]
 
