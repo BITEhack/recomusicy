@@ -18,9 +18,12 @@ import json
 app = FastAPI()
 
 # dataframe used as database
-image_database = pd.DataFrame(columns=['user_id', 'date', 'image', 'label'])
-lyrics_database = pd.DataFrame(columns=['user_id', 'date', 'artist', 'track', 'genre', 'valence', 'arousal'])
-text_database = pd.DataFrame(columns=['user_id', 'date', 'text', 'label'])
+# image_database = pd.DataFrame(columns=['user_id', 'date', 'image', 'label'])
+# lyrics_database = pd.DataFrame(columns=['user_id', 'date', 'artist', 'track', 'genre', 'valence', 'arousal'])
+# text_database = pd.DataFrame(columns=['user_id', 'date', 'text', 'label'])
+image_database = pd.read_csv('images.csv')
+lyrics_database = pd.read_csv('songs.csv')
+text_database = pd.read_csv('texts.csv')
 
 
 # load models
@@ -88,9 +91,9 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
 
 @app.get('/recommend', tags=['recommendations'])
 async def recommend(user_id: int) -> dict:
-    artist, track, genre = make_recommendation(text_database.where('user_id' == user_id),
-                                               lyrics_database.where('user_id' == user_id),
-                                               image_database.where('user_id' == user_id))
+    artist, track, genre = make_recommendation(text_database.where(text_database['user_id'] == user_id),
+                                               lyrics_database.where(lyrics_database['user_id'] == user_id),
+                                               image_database.where(image_database['user_id'] == user_id))
     return {'artist': '{}'.format(artist),
             'track': '{}'.format(track),
             'genre': '{}'.format(genre)}

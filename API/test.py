@@ -1,13 +1,9 @@
 import requests
 
-url = 'http://127.0.0.1:8000/classification?user_id=10&lyrics=adg'
+url = 'http://127.0.0.1:8000/recommend?user_id=22'
 
-# files = {'image': open('example.jpg', 'rb'),
-#          'user_id': 10}
+files = {'user_id': 22}
 
-files = {'lyrics': 'adg',
-         'user_id': 10}
-
-response = requests.post(url, files=files)
+response = requests.get(url, files=files)
 
 print(response.text)

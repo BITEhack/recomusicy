@@ -44,9 +44,10 @@ def make_recommendation(text_history: DataFrame, lyrics_history: DataFrame, imag
     target_transition = json.load(input_file)
     desired_mood = target_transition[str(current_mood)]
 
-    row = lyrics_history.where('label' == desired_mood).sample()
+    row = lyrics_history.where(lyrics_history['label'] == desired_mood).dropna()
+    row = row.sample()
 
-    return row['artist'], row['track'], ['genre']
+    return row['artist'].tolist()[0], row['track'].tolist()[0], row['genre'].tolist()[0]
 
 
 def text_mapping(valence, arousal):
