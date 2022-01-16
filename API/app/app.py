@@ -9,7 +9,8 @@ import numpy as np
 import os
 import cv2
 import joblib
-from sklearn import model_selection
+import pickle
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 
 app = FastAPI()
@@ -22,7 +23,10 @@ text_database = pd.DataFrame(columns=['user_id', 'date', 'text', 'label'])
 
 # load models
 images_model = tf.keras.models.load_model(os.getcwd() + '/images_model.h5')
-text_model = joblib.load(os.getcwd() + '/ModelTextEmotions.sav')
+text_model: LogisticRegression = joblib.load('../ModelTextEmotions.sav')
+
+with open('../VectorizerTextEmotions.pk', 'rb') as file:
+    vectorizer: TfidfVectorizer = pickle.load(file)
 
 
 def read_image_file(data) -> Image.Image:
@@ -34,7 +38,7 @@ def read_image_file(data) -> Image.Image:
 async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(None), lyrics: Optional[str] = None,
                        text: Optional[str] = None, artist: Optional[str] = None, track: Optional[str] = None,
                        genre: Optional[str] = None) -> dict:
-    global image_database, lyrics_database, text_database, images_model, text_model
+    global image_database, lyrics_database, text_database, images_model, text_model, vectorizer
     if lyrics is not None:
         valence, arousal = 1, 1  # TODO change to actual model
         # update database
@@ -42,10 +46,15 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         return {'valence': valence,
                 'arousal': arousal}
     elif text is not None:
-        prediction = 1  # TODO change to actual model
+        X = vectorizer.transform(text)
+
+        # sadness (0), joy (1), love (2), anger (3), fear (4)
+        # TODO consider mapping to arousal/valence
+        prediction = text_model.predict(X)
         # update database
+        # added [0] to extract prediction and text from tables (text HAS TO BE IN ARRAY TO WORK e.g. ["sad"])
         text_database = text_database.append({'user_id': user_id, 'date': pd.to_datetime('now'),
-                                              'text': text, 'label': prediction})
+                                              'text': text[0], 'label': prediction[0]}, ignore_index=True)
         return {'text': 'model to be done'}
     elif image is not None:
         # get image
@@ -66,3 +75,8 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
                                                 'image': image, 'label': predictions})
 
         return {"data": "{}".format(predictions)}
+
+
+# classify_num(user_id=1, text=["sad boy sad"])
+# print(text_database)
+
