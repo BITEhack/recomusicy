@@ -55,7 +55,7 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         valence, arousal = pr[0], pr[1]
         prediction = text_mapping(valence, arousal)
         # update database
-        lyrics_database = lyrics_database.append({'user_id': user_id, 'date': pd.to_datetime('now'), 'artist': artist,
+        lyrics_database = lyrics_database.append({'user_id': user_id, 'date': str(pd.to_datetime('now')), 'artist': artist,
                                                   'track': track, 'genre': genre, 'label': prediction}, ignore_index=True)
 
         return {'valence and arousal': '{}'.format(prediction)}
@@ -65,7 +65,7 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         prediction = map_emotion(text_model.predict(X)[0])
         # update database
         # added [0] to extract prediction and text from tables (text HAS TO BE IN ARRAY TO WORK e.g. ["sad"])
-        text_database = text_database.append({'user_id': user_id, 'date': pd.to_datetime('now'),
+        text_database = text_database.append({'user_id': user_id, 'date': str(pd.to_datetime('now')),
                                               'text': text[0], 'label': prediction}, ignore_index=True)
         return {'valence and arousal': prediction}
     elif image is not None:
@@ -83,7 +83,7 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         predictions = images_model.predict(np.array([image]))[0].argmax()
 
         # update database
-        image_database = image_database.append({'user_id': user_id, 'date': pd.to_datetime('now'),
+        image_database = image_database.append({'user_id': user_id, 'date': str(pd.to_datetime('now')),
                                                 'image': image, 'label': predictions}, ignore_index=True)
 
         return {"data": "{}".format(predictions)}
