@@ -1,3 +1,5 @@
+import json
+import os
 from typing import List
 
 import numpy as np
@@ -28,16 +30,23 @@ def extract_features(text: str, features: List):
 
     results = results.fillna(0)
 
-    print(results)
-
     return results
 
 
 def make_recommendation(text_history: DataFrame, lyrics_history: DataFrame, image_history: DataFrame):
     result = [0, 0, 0, 0]
-    result[text_history.sort_values(by='data', ascending=False).at[0, 'label']] += 1
-    result[lyrics_history.sort_values(by='data', ascending=False).at[0, 'label']] += 1
-    result[image_history.sort_values(by='data', ascending=False).at[0, 'label']] += 1
+    result[text_history.sort_values(by='date', ascending=False).at[0, 'label']] += 1
+    result[lyrics_history.sort_values(by='date', ascending=False).at[0, 'label']] += 1
+    result[image_history.sort_values(by='date', ascending=False).at[0, 'label']] += 1
+
+    current_mood = result.index(max(result))
+    input_file = open(os.getcwd() + '/v_a_correction/target_transition.json')
+    target_transition = json.load(input_file)
+    desired_mood = target_transition[str(current_mood)]
+
+    row = lyrics_history.where('label' == desired_mood).sample()
+
+    return row['artist'], row['track'], ['genre']
 
 
 def text_mapping(valence, arousal):

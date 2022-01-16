@@ -12,7 +12,7 @@ import cv2
 import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from src.utils import map_emotion, extract_features
+from src.utils import *
 import json
 
 app = FastAPI()
@@ -50,12 +50,12 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         pr = list(lyrics_model.predict(extract_features(lyrics, features))[0])
 
         valence, arousal = pr[0], pr[1]
+        prediction = text_mapping(valence, arousal)
         # update database
         lyrics_database = lyrics_database.append({'user_id': user_id, 'date': pd.to_datetime('now'), 'artist': artist,
-                                                  'track': track, 'genre': genre, 'valence': valence,
-                                                  'arousal': arousal}, ignore_index=True)
+                                                  'track': track, 'genre': genre, 'label': prediction}, ignore_index=True)
 
-        return {'valence': '{}'.format(valence)}
+        return {'valence and arousal': '{}'.format(prediction)}
     elif text is not None:
         X = vectorizer.transform([text])
 
@@ -86,9 +86,11 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         return {"data": "{}".format(predictions)}
 
 
-# @app.get('/recommend', tags=['recommendations'])
-# async def recommend(user_id: int):
-#     # get most relevant information
-#     last_text = text_database.where('user_id' == user_id).sort_values(by=['date'], acending=False)\
-#         .iat[0, text_database.get_loc('label')]
-
+@app.get('/recommend', tags=['recommendations'])
+async def recommend(user_id: int) -> dict:
+    artist, track, genre = make_recommendation(text_database.where('user_id' == user_id),
+                                               lyrics_database.where('user_id' == user_id),
+                                               image_database.where('user_id' == user_id))
+    return {'artist': '{}'.format(artist),
+            'track': '{}'.format(track),
+            'genre': '{}'.format(genre)}
