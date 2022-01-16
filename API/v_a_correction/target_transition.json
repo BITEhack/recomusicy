@@ -1,6 +1,6 @@
 {
-  "low valence, low arousal": 1,
-  "low valence, high arousal": 0,
-  "high valence, low arousal": 2,
-  "high valence, high arousal": 3
+  "0": 1,
+  "1": 0,
+  "2": 2,
+  "3": 3
 }

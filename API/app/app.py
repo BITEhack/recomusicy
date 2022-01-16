@@ -18,9 +18,12 @@ import json
 app = FastAPI()
 
 # dataframe used as database
-image_database = pd.DataFrame(columns=['user_id', 'date', 'image', 'label'])
-lyrics_database = pd.DataFrame(columns=['user_id', 'date', 'artist', 'track', 'genre', 'valence', 'arousal'])
-text_database = pd.DataFrame(columns=['user_id', 'date', 'text', 'label'])
+# image_database = pd.DataFrame(columns=['user_id', 'date', 'image', 'label'])
+# lyrics_database = pd.DataFrame(columns=['user_id', 'date', 'artist', 'track', 'genre', 'valence', 'arousal'])
+# text_database = pd.DataFrame(columns=['user_id', 'date', 'text', 'label'])
+image_database = pd.read_csv('images.csv')
+lyrics_database = pd.read_csv('songs.csv')
+text_database = pd.read_csv('texts.csv')
 
 
 # load models
@@ -52,7 +55,7 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         valence, arousal = pr[0], pr[1]
         prediction = text_mapping(valence, arousal)
         # update database
-        lyrics_database = lyrics_database.append({'user_id': user_id, 'date': pd.to_datetime('now'), 'artist': artist,
+        lyrics_database = lyrics_database.append({'user_id': user_id, 'date': str(pd.to_datetime('now')), 'artist': artist,
                                                   'track': track, 'genre': genre, 'label': prediction}, ignore_index=True)
 
         return {'valence and arousal': '{}'.format(prediction)}
@@ -62,7 +65,7 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         prediction = map_emotion(text_model.predict(X)[0])
         # update database
         # added [0] to extract prediction and text from tables (text HAS TO BE IN ARRAY TO WORK e.g. ["sad"])
-        text_database = text_database.append({'user_id': user_id, 'date': pd.to_datetime('now'),
+        text_database = text_database.append({'user_id': user_id, 'date': str(pd.to_datetime('now')),
                                               'text': text[0], 'label': prediction}, ignore_index=True)
         return {'valence and arousal': prediction}
     elif image is not None:
@@ -80,7 +83,7 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
         predictions = images_model.predict(np.array([image]))[0].argmax()
 
         # update database
-        image_database = image_database.append({'user_id': user_id, 'date': pd.to_datetime('now'),
+        image_database = image_database.append({'user_id': user_id, 'date': str(pd.to_datetime('now')),
                                                 'image': image, 'label': predictions}, ignore_index=True)
 
         return {"data": "{}".format(predictions)}
@@ -88,9 +91,9 @@ async def classify_num(user_id: int = None, image: Optional[UploadFile] = File(N
 
 @app.get('/recommend', tags=['recommendations'])
 async def recommend(user_id: int) -> dict:
-    artist, track, genre = make_recommendation(text_database.where('user_id' == user_id),
-                                               lyrics_database.where('user_id' == user_id),
-                                               image_database.where('user_id' == user_id))
+    artist, track, genre = make_recommendation(text_database.where(text_database['user_id'] == user_id),
+                                               lyrics_database.where(lyrics_database['user_id'] == user_id),
+                                               image_database.where(image_database['user_id'] == user_id))
     return {'artist': '{}'.format(artist),
             'track': '{}'.format(track),
             'genre': '{}'.format(genre)}
