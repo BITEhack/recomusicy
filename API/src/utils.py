@@ -39,3 +39,13 @@ def make_recommendation(text_history: DataFrame, lyrics_history: DataFrame, imag
     result[lyrics_history.sort_values(by='data', ascending=False).at[0, 'label']] += 1
     result[image_history.sort_values(by='data', ascending=False).at[0, 'label']] += 1
 
+
+def text_mapping(valence, arousal):
+    if valence >= 4.5 and arousal >= 4.5:
+        return 3
+    elif valence >= 4.5 and arousal < 4.5:
+        return 2
+    elif valence < 4.5 and arousal >= 4.5:
+        return 1
+    else:
+        return 0
