@@ -1,2 +1,2 @@
 # Recomusicy
-**In progress...**
+**README in progress...**
